@@ -32,5 +32,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 EXPOSE ${PORT:-8000}
 
-# Default: run the API server (Railway provides $PORT)
-CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2
+# Default: run the API server (PORT provided by cloud platforms)
+CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
