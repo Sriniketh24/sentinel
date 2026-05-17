@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# Environment
+.env
+
+# Data (large files - not tracked)
+data/raw/*
+data/processed/*
+data/embeddings/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/embeddings/.gitkeep
+
+# Keep eval data
+!data/eval/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing / Linting
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Logs
+*.log
+
+# Claude/AI tooling
+.claude-flow/
+

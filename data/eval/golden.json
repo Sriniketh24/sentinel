@@ -1,0 +1,32 @@
+[
+  {
+    "query": "What was Apple's total revenue in fiscal year 2024?",
+    "expected_answer": "$391.0 billion",
+    "expected_entities": ["Apple"],
+    "relevant_doc_ids": ["44d3cdf9-0267-4195-ae5b-c9ee619a94cc", "5b53f2e0-7757-4e90-a04a-8b57c8b59c23"]
+  },
+  {
+    "query": "What is Microsoft's cloud services revenue growth?",
+    "expected_answer": "Microsoft 365 Commercial cloud revenue grew 16%",
+    "expected_entities": ["Microsoft"],
+    "relevant_doc_ids": ["fe83ba84-c28b-4648-a851-e9e262e537d0", "1a680443-6364-4548-aac1-b25b433753f8"]
+  },
+  {
+    "query": "Did NVIDIA provide forward guidance for data center revenue growth?",
+    "expected_answer": "Data center revenue grew significantly year-over-year",
+    "expected_entities": ["NVIDIA"],
+    "relevant_doc_ids": ["600dca0a-528a-4235-b8d5-85f7b131fd5c", "bcf923ee-c44f-4c88-ac57-1532ad0d76b5"]
+  },
+  {
+    "query": "What risk factors does Microsoft highlight regarding competition and AI?",
+    "expected_answer": "Competition in cloud and AI services, regulatory changes",
+    "expected_entities": ["Microsoft"],
+    "relevant_doc_ids": ["fe83ba84-c28b-4648-a851-e9e262e537d0", "1a680443-6364-4548-aac1-b25b433753f8"]
+  },
+  {
+    "query": "What was Apple's iPhone and Services segment performance?",
+    "expected_answer": "iPhone and Services revenue details from 10-K filing",
+    "expected_entities": ["Apple", "iPhone"],
+    "relevant_doc_ids": ["44d3cdf9-0267-4195-ae5b-c9ee619a94cc", "5b53f2e0-7757-4e90-a04a-8b57c8b59c23"]
+  }
+]

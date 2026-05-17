@@ -1,0 +1,43 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  sentinel-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+      - qdrant
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+  sentinel-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+      - qdrant
+    command: celery -A src.ingestion.tasks worker --loglevel=info --concurrency=2
+
+volumes:
+  redis_data:
+  qdrant_data:
