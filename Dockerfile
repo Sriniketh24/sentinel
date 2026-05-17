@@ -28,9 +28,9 @@ RUN mkdir -p data/raw/edgar data/raw/uploads data/processed data/embeddings
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-EXPOSE 8000
+EXPOSE ${PORT:-8000}
 
-# Default: run the API server
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Default: run the API server (Railway provides $PORT)
+CMD uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2
