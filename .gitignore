@@ -44,3 +44,4 @@ coverage.xml
 # Claude/AI tooling
 .claude-flow/
 
+CLAUDE.md
