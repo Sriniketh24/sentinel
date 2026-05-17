@@ -1,5 +1,7 @@
+import math
+
 import structlog
-from sentence_transformers import SentenceTransformer
+from huggingface_hub import InferenceClient
 
 from src.config import get_settings
 from src.models.document import DocumentChunk
@@ -11,23 +13,20 @@ class Embedder:
     def __init__(self) -> None:
         settings = get_settings()
         self._model_name = settings.embedding_model
-        self._model: SentenceTransformer | None = None
-
-    def _load_model(self) -> SentenceTransformer:
-        if self._model is None:
-            log.info("loading embedding model", model=self._model_name)
-            self._model = SentenceTransformer(self._model_name, device="cpu")
-        return self._model
+        self._hf_token = settings.hf_api_token
+        self._local_model = None
 
     def embed_text(self, text: str) -> list[float]:
-        model = self._load_model()
-        embedding = model.encode(text, normalize_embeddings=True)
-        return embedding.tolist()
+        result = self._embed_via_api(text)
+        if result is not None:
+            return result
+        return self._embed_local(text)
 
     def embed_texts(self, texts: list[str], batch_size: int = 16) -> list[list[float]]:
-        model = self._load_model()
-        embeddings = model.encode(texts, batch_size=batch_size, normalize_embeddings=True)
-        return embeddings.tolist()
+        results = self._embed_texts_via_api(texts)
+        if results is not None:
+            return results
+        return self._embed_texts_local(texts, batch_size)
 
     def embed_chunks(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
         texts = [c.content for c in chunks]
@@ -36,3 +35,59 @@ class Embedder:
             chunk.embedding = emb
         log.info("embedded chunks", count=len(chunks))
         return chunks
+
+    def _embed_via_api(self, text: str) -> list[float] | None:
+        if not self._hf_token:
+            return None
+        try:
+            client = InferenceClient(token=self._hf_token)
+            result = client.feature_extraction(text, model=self._model_name)
+            embedding = result[0] if isinstance(result[0], list) else result
+            return self._normalize(embedding)
+        except Exception as e:
+            log.warning("API embedding failed, trying local", error=str(e)[:120])
+            return None
+
+    def _embed_texts_via_api(self, texts: list[str]) -> list[list[float]] | None:
+        if not self._hf_token:
+            return None
+        try:
+            client = InferenceClient(token=self._hf_token)
+            embeddings: list[list[float]] = []
+            for text in texts:
+                result = client.feature_extraction(text, model=self._model_name)
+                emb = result[0] if isinstance(result[0], list) else result
+                embeddings.append(self._normalize(emb))
+            return embeddings
+        except Exception as e:
+            log.warning("API batch embedding failed, trying local", error=str(e)[:120])
+            return None
+
+    def _load_local_model(self):
+        if self._local_model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+
+                log.info("loading local embedding model", model=self._model_name)
+                self._local_model = SentenceTransformer(self._model_name, device="cpu")
+            except ImportError:
+                log.warning("sentence-transformers not installed")
+                raise
+        return self._local_model
+
+    def _embed_local(self, text: str) -> list[float]:
+        model = self._load_local_model()
+        embedding = model.encode(text, normalize_embeddings=True)
+        return embedding.tolist()
+
+    def _embed_texts_local(self, texts: list[str], batch_size: int = 16) -> list[list[float]]:
+        model = self._load_local_model()
+        embeddings = model.encode(texts, batch_size=batch_size, normalize_embeddings=True)
+        return embeddings.tolist()
+
+    @staticmethod
+    def _normalize(vec: list[float]) -> list[float]:
+        norm = math.sqrt(sum(x * x for x in vec))
+        if norm == 0:
+            return vec
+        return [x / norm for x in vec]

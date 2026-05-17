@@ -2,9 +2,10 @@ import gc
 import re
 
 import structlog
-from transformers import pipeline as hf_pipeline
+from huggingface_hub import InferenceClient
 
 from src.agents.state import PipelineState
+from src.config import get_settings
 from src.models.pipeline import ExtractedEntity, ExtractionResult
 
 log = structlog.get_logger()
@@ -58,11 +59,56 @@ class ExtractorAgent:
         return state
 
     def _extract_entities(self, text: str) -> list[ExtractedEntity]:
+        entities = self._ner_via_api(text)
+        if entities is None:
+            entities = self._ner_local(text)
+        return entities
+
+    @staticmethod
+    def _ner_via_api(text: str) -> list[ExtractedEntity] | None:
+        settings = get_settings()
+        if not settings.hf_api_token:
+            return None
+        try:
+            client = InferenceClient(token=settings.hf_api_token)
+            raw = client.token_classification(text[:3000], model=NER_MODEL)
+
+            seen: set[tuple[str, str]] = set()
+            entities: list[ExtractedEntity] = []
+            for ent in raw:
+                word = ent.get("word", ent.get("entity", ""))
+                label = ent.get("entity_group", ent.get("entity", ""))
+                # Strip B-/I- prefixes from BIO tags
+                if label.startswith(("B-", "I-")):
+                    label = label[2:]
+                key = (word, label)
+                if key not in seen:
+                    seen.add(key)
+                    entities.append(
+                        ExtractedEntity(
+                            text=word,
+                            label=label,
+                            confidence=ent.get("score", 0.0),
+                        )
+                    )
+            return entities
+        except Exception as e:
+            log.warning("API NER failed, trying local", error=str(e)[:120])
+            return None
+
+    @staticmethod
+    def _ner_local(text: str) -> list[ExtractedEntity]:
+        try:
+            from transformers import pipeline as hf_pipeline
+        except ImportError:
+            log.warning("transformers not installed, skipping NER")
+            return []
+
         ner = hf_pipeline("ner", model=NER_MODEL, aggregation_strategy="simple", device=-1)
         raw = ner(text[:3000])
 
-        seen = set()
-        entities = []
+        seen: set[tuple[str, str]] = set()
+        entities: list[ExtractedEntity] = []
         for ent in raw:
             key = (ent["word"], ent["entity_group"])
             if key not in seen:

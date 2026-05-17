@@ -1,7 +1,5 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
-
-from src.ingestion.tasks import ingest_filing
 
 router = APIRouter()
 
@@ -19,12 +17,20 @@ class IngestResponse(BaseModel):
 
 @router.post("/ingest/edgar", response_model=IngestResponse)
 async def ingest_from_edgar(request: IngestRequest):
-    task = ingest_filing.delay(
-        ticker=request.ticker,
-        form_types=request.form_types,
-        limit=request.limit,
-    )
-    return IngestResponse(task_id=task.id, status="queued")
+    try:
+        from src.ingestion.tasks import ingest_filing
+
+        task = ingest_filing.delay(
+            ticker=request.ticker,
+            form_types=request.form_types,
+            limit=request.limit,
+        )
+        return IngestResponse(task_id=task.id, status="queued")
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Celery worker unavailable: {e!s}. Use /api/v1/analyze for direct analysis.",
+        )
 
 
 @router.post("/ingest/upload")
@@ -51,11 +57,17 @@ async def ingest_upload(file: UploadFile = File(...)):
 
 @router.get("/ingest/status/{task_id}")
 async def ingest_status(task_id: str):
-    from celery.result import AsyncResult
+    try:
+        from celery.result import AsyncResult
 
-    result = AsyncResult(task_id)
-    return {
-        "task_id": task_id,
-        "status": result.status,
-        "result": result.result if result.ready() else None,
-    }
+        result = AsyncResult(task_id)
+        return {
+            "task_id": task_id,
+            "status": result.status,
+            "result": result.result if result.ready() else None,
+        }
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Celery worker unavailable in this deployment.",
+        )

@@ -13,9 +13,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install lightweight Python dependencies (no torch/transformers — uses HF Inference API)
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
+RUN pip install --no-cache-dir \
+    "fastapi>=0.115.0" \
+    "uvicorn[standard]>=0.30.0" \
+    "pydantic>=2.9.0" \
+    "pydantic-settings>=2.5.0" \
+    "langgraph>=0.2.0" \
+    "langchain-core>=0.3.0" \
+    "qdrant-client>=1.11.0" \
+    "huggingface-hub>=0.25.0" \
+    "structlog>=24.4.0" \
+    "prometheus-client>=0.21.0" \
+    "httpx>=0.27.0" \
+    "python-dotenv>=1.0.0" \
+    "tenacity>=9.0.0" \
+    "python-multipart>=0.0.9"
 
 # Copy application code
 COPY src/ src/
