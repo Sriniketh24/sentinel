@@ -64,8 +64,7 @@ class EdgarClient:
 
                 accession = accession_numbers[i].replace("-", "")
                 doc_url = (
-                    f"https://www.sec.gov/Archives/edgar/data/"
-                    f"{cik}/{accession}/{primary_docs[i]}"
+                    f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{primary_docs[i]}"
                 )
 
                 file_path = await self._download_filing(client, doc_url, ticker, form, i)

@@ -18,9 +18,7 @@ class ImageParser:
 
             model_id = "microsoft/Florence-2-base"
             self._processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-            self._model = AutoModelForCausalLM.from_pretrained(
-                model_id, trust_remote_code=True
-            )
+            self._model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
         return self._model, self._processor
 
     def parse(self, file_path: str, document_id: str) -> list[DocumentChunk]:

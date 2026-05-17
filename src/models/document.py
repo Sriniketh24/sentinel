@@ -1,11 +1,11 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class DocumentType(str, Enum):
+class DocumentType(StrEnum):
     SEC_10K = "10-K"
     SEC_10Q = "10-Q"
     SEC_8K = "8-K"
@@ -16,7 +16,7 @@ class DocumentType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class Modality(str, Enum):
+class Modality(StrEnum):
     TEXT = "text"
     TABLE = "table"
     IMAGE = "image"

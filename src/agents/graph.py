@@ -12,6 +12,7 @@ from src.models.pipeline import PipelineResult
 
 log = structlog.get_logger()
 
+
 def classify_node(state: dict) -> dict:
     ps = PipelineState(**state)
     ps = ClassifierAgent().run(ps)
@@ -53,7 +54,11 @@ def build_pipeline_graph() -> StateGraph:
 
     graph.set_entry_point("classify")
     graph.add_edge("classify", "extract")
-    graph.add_conditional_edges("extract", should_verify, {"verify": "verify", "synthesize": "synthesize"})
+    graph.add_conditional_edges(
+        "extract",
+        should_verify,
+        {"verify": "verify", "synthesize": "synthesize"},
+    )
     graph.add_edge("verify", "synthesize")
     graph.add_edge("synthesize", END)
 

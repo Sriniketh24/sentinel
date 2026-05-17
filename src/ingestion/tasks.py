@@ -12,9 +12,9 @@ celery_app.conf.result_serializer = "json"
 
 @celery_app.task(name="ingest_filing", bind=True, max_retries=3)
 def ingest_filing(self, ticker: str, form_types: list[str] | None = None, limit: int = 5):
+    from src.ingestion.chunker import MultimodalChunker
     from src.ingestion.edgar import EdgarClient
     from src.ingestion.parsers.pdf_parser import PDFParser
-    from src.ingestion.chunker import MultimodalChunker
     from src.rag.embedder import Embedder
     from src.rag.store import VectorStore
 

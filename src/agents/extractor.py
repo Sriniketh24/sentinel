@@ -12,10 +12,22 @@ log = structlog.get_logger()
 NER_MODEL = "dslim/bert-base-NER"
 
 FINANCIAL_PATTERNS = {
-    "revenue": r"(?:revenue|net\s+sales|total\s+revenue)\s*(?:was|of|:)?\s*\$?([\d,.]+)\s*(million|billion|M|B)?",
-    "net_income": r"(?:net\s+income|net\s+earnings)\s*(?:was|of|:)?\s*\$?([\d,.]+)\s*(million|billion|M|B)?",
-    "eps": r"(?:earnings\s+per\s+share|EPS)\s*(?:was|were|of|:)?\s*\$?([\d.]+)",
-    "gross_margin": r"(?:gross\s+margin|gross\s+profit\s+margin)\s*(?:was|of|:)?\s*([\d.]+)\s*%?(?:\s*percent)?",
+    "revenue": (
+        r"(?:revenue|net\s+sales|total\s+revenue)"
+        r"\s*(?:was|of|:)?\s*\$?([\d,.]+)\s*(million|billion|M|B)?"
+    ),
+    "net_income": (
+        r"(?:net\s+income|net\s+earnings)"
+        r"\s*(?:was|of|:)?\s*\$?([\d,.]+)\s*(million|billion|M|B)?"
+    ),
+    "eps": (
+        r"(?:earnings\s+per\s+share|EPS)"
+        r"\s*(?:was|were|of|:)?\s*\$?([\d.]+)"
+    ),
+    "gross_margin": (
+        r"(?:gross\s+margin|gross\s+profit\s+margin)"
+        r"\s*(?:was|of|:)?\s*([\d.]+)\s*%?(?:\s*percent)?"
+    ),
 }
 
 

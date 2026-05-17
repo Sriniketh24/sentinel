@@ -93,8 +93,10 @@ class SynthesizerAgent:
 
         summary = (
             f"Analysis of {ticker} {state.doc_type} filing. "
-            f"Detected sentiment: {state.sentiment} ({state.sentiment_confidence:.0%} confidence). "
-            f"Extracted {len(ext.key_metrics)} financial metrics and {len(ext.entities)} named entities."
+            f"Detected sentiment: {state.sentiment} "
+            f"({state.sentiment_confidence:.0%} confidence). "
+            f"Extracted {len(ext.key_metrics)} financial metrics "
+            f"and {len(ext.entities)} named entities."
         )
 
         return ResearchBrief(
