@@ -12,11 +12,30 @@ VECTOR_SIZE = 384  # bge-small-en-v1.5 dimension
 class VectorStore:
     def __init__(self) -> None:
         settings = get_settings()
-        self._client = QdrantClient(url=settings.qdrant_url, check_compatibility=False)
+        self._qdrant_url = settings.qdrant_url
         self._collection = settings.qdrant_collection
-        self._ensure_collection()
+        self._client: QdrantClient | None = None
+        self._available: bool | None = None
+
+    def _get_client(self) -> QdrantClient | None:
+        if self._available is False:
+            return None
+        if self._client is None:
+            try:
+                self._client = QdrantClient(
+                    url=self._qdrant_url, check_compatibility=False, timeout=5
+                )
+                self._ensure_collection()
+                self._available = True
+            except Exception as e:
+                log.warning("Qdrant unavailable", error=str(e)[:120])
+                self._available = False
+                return None
+        return self._client
 
     def _ensure_collection(self) -> None:
+        if self._client is None:
+            return
         collections = [c.name for c in self._client.get_collections().collections]
         if self._collection not in collections:
             self._client.create_collection(
@@ -29,6 +48,11 @@ class VectorStore:
             log.info("created collection", name=self._collection)
 
     async def upsert(self, chunks: list[DocumentChunk]) -> None:
+        client = self._get_client()
+        if client is None:
+            log.warning("Qdrant unavailable, skipping upsert")
+            return
+
         points = []
         for chunk in chunks:
             if chunk.embedding is None:
@@ -49,7 +73,7 @@ class VectorStore:
             )
 
         if points:
-            self._client.upsert(collection_name=self._collection, points=points)
+            client.upsert(collection_name=self._collection, points=points)
             log.info("upserted vectors", count=len(points))
 
     def search(
@@ -58,6 +82,11 @@ class VectorStore:
         top_k: int = 10,
         modality_filter: str | None = None,
     ) -> list[dict]:
+        client = self._get_client()
+        if client is None:
+            log.info("Qdrant unavailable, returning empty results")
+            return []
+
         query_filter = None
         if modality_filter:
             query_filter = models.Filter(
@@ -69,12 +98,16 @@ class VectorStore:
                 ]
             )
 
-        results = self._client.query_points(
-            collection_name=self._collection,
-            query=query_vector,
-            limit=top_k,
-            query_filter=query_filter,
-        )
+        try:
+            results = client.query_points(
+                collection_name=self._collection,
+                query=query_vector,
+                limit=top_k,
+                query_filter=query_filter,
+            )
+        except Exception as e:
+            log.warning("Qdrant search failed", error=str(e)[:120])
+            return []
 
         return [
             {
