@@ -20,13 +20,28 @@ class Embedder:
         result = self._embed_via_api(text)
         if result is not None:
             return result
-        return self._embed_local(text)
+        try:
+            return self._embed_local(text)
+        except (ImportError, Exception) as e:
+            log.warning("All embedding methods failed", error=str(e)[:120])
+            return self._zero_vector()
 
     def embed_texts(self, texts: list[str], batch_size: int = 16) -> list[list[float]]:
         results = self._embed_texts_via_api(texts)
         if results is not None:
             return results
-        return self._embed_texts_local(texts, batch_size)
+        try:
+            return self._embed_texts_local(texts, batch_size)
+        except (ImportError, Exception) as e:
+            log.warning("All batch embedding methods failed", error=str(e)[:120])
+            return [self._zero_vector() for _ in texts]
+
+    @staticmethod
+    def _zero_vector() -> list[float]:
+        """Return a zero vector when no embedding method is available."""
+        from src.rag.store import VECTOR_SIZE
+
+        return [0.0] * VECTOR_SIZE
 
     def embed_chunks(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
         texts = [c.content for c in chunks]
