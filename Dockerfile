@@ -29,7 +29,8 @@ RUN pip install --no-cache-dir \
     "httpx>=0.27.0" \
     "python-dotenv>=1.0.0" \
     "tenacity>=9.0.0" \
-    "python-multipart>=0.0.9"
+    "python-multipart>=0.0.9" \
+    "pdfplumber>=0.11.0"
 
 # Copy application code
 COPY src/ src/

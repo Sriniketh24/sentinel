@@ -193,6 +193,41 @@
     }
     .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+    /* PDF Upload Zone */
+    .pdf-upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .pdf-upload-zone:hover { border-color: var(--accent); background: rgba(56,189,248,0.04); }
+    .pdf-upload-zone.dragover { border-color: var(--accent); background: rgba(56,189,248,0.08); }
+    .pdf-upload-zone.disabled { opacity: 0.5; pointer-events: none; }
+    .pdf-upload-zone input[type="file"] {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+    .pdf-upload-icon { font-size: 1.5rem; margin-bottom: 0.35rem; }
+    .pdf-upload-label { font-size: 0.85rem; color: var(--muted); }
+    .pdf-upload-label strong { color: var(--accent); }
+    .pdf-upload-hint {
+      font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem;
+      opacity: 0.7;
+    }
+    .pdf-status {
+      display: none; align-items: center; gap: 0.6rem;
+      padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.82rem;
+      margin-bottom: 1rem;
+    }
+    .pdf-status.visible { display: flex; }
+    .pdf-status.info { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); color: var(--accent); }
+    .pdf-status.success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.2); color: var(--green); }
+    .pdf-status.error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); color: var(--red); }
+
     @media (max-width: 768px) {
       .input-row { grid-template-columns: 1fr; }
       .result-grid { grid-template-columns: 1fr; }
@@ -229,6 +264,18 @@
     </div>
 
     <div class="input-section">
+      <!-- PDF Upload Zone -->
+      <div class="pdf-upload-zone" id="pdf-drop-zone">
+        <input type="file" id="pdf-file-input" accept=".pdf,application/pdf" />
+        <div class="pdf-upload-icon">&#128196;</div>
+        <div class="pdf-upload-label"><strong>Click to upload</strong> or drag &amp; drop a PDF</div>
+        <div class="pdf-upload-hint">PDF text will be extracted so you can review or trim it before analysis. Max 50 MB.</div>
+      </div>
+      <div class="pdf-status" id="pdf-status">
+        <div class="spinner" id="pdf-spinner" style="display:none;"></div>
+        <span id="pdf-status-text"></span>
+      </div>
+
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
         <label style="margin:0">Document Content</label>
         <div style="display:flex;gap:0.5rem;">
@@ -462,6 +509,117 @@ function renderResults(data, elapsed) {
   document.getElementById('latency').textContent = elapsed;
 
   results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── PDF Upload Logic ──
+
+const MAX_PDF_SIZE = 50 * 1024 * 1024; // 50 MB
+const dropZone = document.getElementById('pdf-drop-zone');
+const fileInput = document.getElementById('pdf-file-input');
+const pdfStatus = document.getElementById('pdf-status');
+const pdfSpinner = document.getElementById('pdf-spinner');
+const pdfStatusText = document.getElementById('pdf-status-text');
+
+function showPdfStatus(msg, type) {
+  pdfStatus.className = 'pdf-status visible ' + type;
+  pdfStatusText.textContent = msg;
+  pdfSpinner.style.display = type === 'info' ? 'block' : 'none';
+}
+
+function hidePdfStatus() {
+  pdfStatus.className = 'pdf-status';
+}
+
+// Drag-and-drop events
+['dragenter', 'dragover'].forEach(evt => {
+  dropZone.addEventListener(evt, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('dragover');
+  });
+});
+
+['dragleave', 'drop'].forEach(evt => {
+  dropZone.addEventListener(evt, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('dragover');
+  });
+});
+
+dropZone.addEventListener('drop', e => {
+  const files = e.dataTransfer.files;
+  if (files.length > 0) handlePdfFile(files[0]);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length > 0) handlePdfFile(fileInput.files[0]);
+});
+
+async function handlePdfFile(file) {
+  // Client-side validation
+  if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+    showPdfStatus('Please select a PDF file.', 'error');
+    return;
+  }
+
+  if (file.size > MAX_PDF_SIZE) {
+    showPdfStatus(
+      `File is too large (${(file.size / (1024*1024)).toFixed(1)} MB). Maximum is 50 MB.`,
+      'error'
+    );
+    return;
+  }
+
+  // Check if textarea already has content
+  const textarea = document.getElementById('content');
+  if (textarea.value.trim()) {
+    const replace = confirm('Replace the current document text with extracted PDF text?');
+    if (!replace) {
+      fileInput.value = '';
+      return;
+    }
+  }
+
+  // Disable upload zone during extraction
+  dropZone.classList.add('disabled');
+  showPdfStatus(`Extracting text from "${file.name}"...`, 'info');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch('/api/v1/extract-pdf', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data.detail || 'PDF extraction failed');
+    }
+
+    if (!data.has_text) {
+      showPdfStatus(data.error || 'No text could be extracted from this PDF.', 'error');
+      return;
+    }
+
+    // Populate textarea with extracted text
+    textarea.value = data.content;
+    showPdfStatus(
+      `Extracted ${data.page_count} page${data.page_count !== 1 ? 's' : ''}, ` +
+      `${data.character_count.toLocaleString()} characters from "${data.filename}". ` +
+      `Review or edit before analyzing.`,
+      'success'
+    );
+
+  } catch (e) {
+    showPdfStatus('Error: ' + e.message, 'error');
+  } finally {
+    dropZone.classList.remove('disabled');
+    fileInput.value = '';
+  }
 }
 </script>
 </body>
